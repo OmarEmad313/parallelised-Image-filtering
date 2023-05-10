@@ -34,15 +34,19 @@ void apply_filters_task_parallelism(const cv::Mat& input, cv::Mat& edges_output,
 	blur_thread.join();
 }
 
-void apply_filters_data_parallelism(const cv::Mat& input, cv::Mat& output, int start_row, int end_row) {
+void apply_filters_data_parallelism(const cv::Mat& input, cv::Mat& edges_output, cv::Mat& blurred_output, int start_row, int end_row) {
 	cv::Mat segment = input.rowRange(start_row, end_row).clone();
 
-	cv::Mat edges_output, blurred_output;
-	cv::Canny(segment, edges_output, 50, 150);
-	cv::GaussianBlur(segment, blurred_output, cv::Size(7, 7), 0);
+	cv::Mat edges_output_segment, blurred_output_segment;
+	EdgeDetection edge_detection;
+	Blur blur;
+	edge_detection(segment, edges_output_segment);
+	blur(segment, blurred_output_segment);
 
-	edges_output.copyTo(output.rowRange(start_row, end_row));
+	edges_output_segment.copyTo(edges_output.rowRange(start_row, end_row));
+	blurred_output_segment.copyTo(blurred_output.rowRange(start_row, end_row));
 }
+
 
 int main() {
 	std::string input_image_path = "C:\\Main\\College\\parallel\\project\\img\\Eren.jpg";
@@ -80,9 +84,9 @@ int main() {
 		for (int i = 0; i < num_threads; ++i) {
 			int start_row = i * rows_per_thread;
 			int end_row = (i == num_threads - 1) ? input.rows : start_row + rows_per_thread;
-			threads.push_back(std::thread(apply_filters_data_parallelism, std::cref(input), std::ref(edges_output), start_row, end_row));
-			threads.push_back(std::thread(apply_filters_data_parallelism, std::cref(input), std::ref(blurred_output), start_row, end_row));
+			threads.push_back(std::thread(apply_filters_data_parallelism, std::cref(input), std::ref(edges_output), std::ref(blurred_output), start_row, end_row));
 		}
+
 
 		for (auto& thread : threads) {
 			thread.join();
@@ -109,10 +113,9 @@ int main() {
 		for (int i = 0; i < num_threads; ++i) {
 			int start_row = i * rows_per_thread;
 			int end_row = (i == num_threads - 1) ? input.rows : start_row + rows_per_thread;
-
-			threads.push_back(std::thread(apply_filters_data_parallelism, std::cref(input), std::ref(edges_output), start_row, end_row));
-			threads.push_back(std::thread(apply_filters_data_parallelism, std::cref(input), std::ref(blurred_output), start_row, end_row));
+			threads.push_back(std::thread(apply_filters_data_parallelism, std::cref(input), std::ref(edges_output), std::ref(blurred_output), start_row, end_row));
 		}
+
 
 		for (auto& thread : threads) {
 			thread.join();
